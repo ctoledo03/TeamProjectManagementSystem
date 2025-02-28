@@ -40,11 +40,12 @@ const typeDefs = gql`
     me: User
 
     # Team member queries
-    viewUsers: [User]
     viewTeamDetails(teamId: ID!): Team
-    viewAssignedProjects(userId: ID!): [Project]
+    viewAssignedProjects: [Project]
+    viewMyTeams: [Team]
 
     # Admin queries
+    viewUsers: [User]
     listTeams: [Team]
     listProjects: [Project]
     listMembers(teamId: ID!): [User]
@@ -55,12 +56,18 @@ const typeDefs = gql`
     login(username: String!, password: String!): AuthPayload!
     logout: Boolean!
     
+    # Public mutations
+    register(username: String!, email: String!, password: String!, registrationCode: String): User!
+    
     # Team member mutations
     updateProjectStatus(projectId: ID!, status: String!): Project
+    updateTeamStatus(teamId: ID!, status: String!): Team
     
     # Admin mutations
     createUser(username: String!, email: String!, password: String!, role: String!): User
+    updateUserRole(userId: ID!, role: String!): User
     createTeam(teamName: String!, description: String!, teamSlogan: String!): Team
+    assignUsersToTeam(teamId: ID!, userIds: [ID!]): Team
     assignProjectToTeam(projectId: ID!, teamIds: [ID!]): Project
     createProject(projectName: String!, description: String!, teamIds: [ID!], startDate: String!, endDate: String): Project
   }

@@ -28,52 +28,62 @@ const checkAdmin = (context) => {
 
 const resolvers = {
   Query: {
+    // Public queries
     me: async (_, __, context) => {
       checkAuth(context);
-      return context.user;
+      return await User.findById(context.user.id);
     },
 
     // Team member queries
-    viewUsers: async (_, __, context) => {
-      checkAuth(context);
-      return await User.find();
-    },
-
     viewTeamDetails: async (_, { teamId }, context) => {
       checkAuth(context);
       return await Team.findById(teamId).populate('members').populate('projects');
     },
-    
-    viewAssignedProjects: async (_, { userId }, context) => {
+
+    viewAssignedProjects: async (_, __, context) => {
       checkAuth(context);
-      // Users can only view their own projects unless they're admin
-      if (userId !== context.user.id && context.user.role !== 'ADMIN') {
-        throw new GraphQLError('Not authorized to view other users projects', {
-          extensions: {
-            code: 'FORBIDDEN'
-          }
-        });
-      }
-      const teams = await Team.find({ members: userId });
+      // First find all teams the user is a member of
+      const teams = await Team.find({ members: context.user.id });
       const teamIds = teams.map(team => team._id);
-      return await Project.find({ team: { $in: teamIds } });
+      
+      // Then find all projects assigned to those teams
+      const projects = await Project.find({ teams: { $in: teamIds } })
+        .populate('teams');
+      
+      return projects;
+    },
+
+    viewMyTeams: async (_, __, context) => {
+      checkAuth(context);
+      return await Team.find({ members: context.user.id })
+        .populate('members')
+        .populate({
+          path: 'projects',
+          model: 'Project',
+          select: 'projectName description status startDate endDate'
+        });
     },
 
     // Admin queries
+    viewUsers: async (_, __, context) => {
+      checkAdmin(context);
+      return await User.find({});
+    },
+
     listTeams: async (_, __, context) => {
       checkAdmin(context);
-      return await Team.find().populate('members').populate('projects');
+      return await Team.find({}).populate('members').populate('projects');
     },
     
     listProjects: async (_, __, context) => {
       checkAdmin(context);
-      return await Project.find().populate('teams');
+      return await Project.find({}).populate('teams');
     },
     
     listMembers: async (_, { teamId }, context) => {
       checkAdmin(context);
       const team = await Team.findById(teamId).populate('members');
-      return team ? team.members : [];
+      return team.members;
     },
   },
 
@@ -118,10 +128,70 @@ const resolvers = {
       };
     },
 
+    // Public mutations
+    register: async (_, { username, email, password, registrationCode }) => {
+      try {
+        const existingUser = await User.findOne({ 
+          $or: [{ username }, { email }] 
+        });
+        
+        if (existingUser) {
+          throw new GraphQLError(
+            existingUser.username === username 
+              ? 'Username already exists' 
+              : 'Email already exists',
+            {
+              extensions: {
+                code: 'BAD_USER_INPUT'
+              }
+            }
+          );
+        }
+
+        // Check registration code to determine role
+        let role = 'MEMBER';
+        if (registrationCode) {
+          switch(registrationCode) {
+            case process.env.ADMIN_REGISTRATION_CODE:
+              role = 'ADMIN';
+              break;
+            // Add more cases for different roles if needed
+          }
+        }
+
+        const user = await User.create({
+          username,
+          email,
+          password,
+          role
+        });
+
+        return user;
+      } catch (error) {
+        throw new GraphQLError(error.message, {
+          extensions: {
+            code: 'BAD_USER_INPUT'
+          }
+        });
+      }
+    },
+
     // Team member mutations
     updateProjectStatus: async (_, { projectId, status }, context) => {
       checkAuth(context);
       return await Project.findByIdAndUpdate(projectId, { status }, { new: true });
+    },
+
+    updateTeamStatus: async (_, { teamId, status }, context) => {
+      checkAuth(context);
+      // Check if user is a member of the team
+      const team = await Team.findById(teamId);
+      if (!team.members.includes(context.user.id)) {
+        throw new GraphQLError('Not authorized to update this team', {
+          extensions: { code: 'FORBIDDEN' }
+        });
+      }
+      return await Team.findByIdAndUpdate(teamId, { status }, { new: true });
     },
 
     // Admin mutations
@@ -144,8 +214,8 @@ const resolvers = {
     assignProjectToTeam: async (_, { projectId, teamIds }, context) => {
       checkAdmin(context);
       return await Project.findByIdAndUpdate(
-        projectId, 
-        { teams: teamIds }, 
+        projectId,
+        { teams: teamIds },
         { new: true }
       ).populate('teams');
     },
@@ -165,12 +235,42 @@ const resolvers = {
       const project = await Project.create({
         projectName,
         description,
-        teams: teamIds || [],  // Allow for no teams initially
+        teams: teamIds || [],
         startDate: new Date(startDate),
         endDate: endDate ? new Date(endDate) : null,
         status: 'Pending'
       });
       return project.populate('teams');
+    },
+
+    assignUsersToTeam: async (_, { teamId, userIds }, context) => {
+      checkAdmin(context);
+      return await Team.findByIdAndUpdate(
+        teamId,
+        { members: userIds },
+        { new: true }
+      ).populate('members');
+    },
+
+    updateUserRole: async (_, { userId, role }, context) => {
+      checkAdmin(context);
+      const user = await User.findById(userId);
+      
+      if (!user) {
+        throw new GraphQLError('User not found', {
+          extensions: { code: 'NOT_FOUND' }
+        });
+      }
+      
+      if (!['ADMIN', 'MEMBER'].includes(role)) {
+        throw new GraphQLError('Invalid role', {
+          extensions: { code: 'BAD_USER_INPUT' }
+        });
+      }
+      
+      user.role = role;
+      await user.save();
+      return user;
     },
   }
 };
