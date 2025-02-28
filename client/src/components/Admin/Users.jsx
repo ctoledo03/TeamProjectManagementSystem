@@ -1,6 +1,8 @@
 import { useQuery, gql } from '@apollo/client';
 import { Container, Table, Alert, Spinner, Badge, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import ChangeRoleModal from './ChangeRoleModal';
 
 const VIEW_USERS = gql`
   query ViewUsers {
@@ -15,10 +17,17 @@ const VIEW_USERS = gql`
 
 function Users({ setActiveComponent, refetchList }) {
   const { loading, error, data, refetch } = useQuery(VIEW_USERS);
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
 
   if (refetchList) {
     refetchList.current = refetch;
   }
+
+  const handleRoleClick = (user) => {
+    setSelectedUser(user);
+    setShowRoleModal(true);
+  };
 
   if (loading) {
     return (
@@ -68,6 +77,7 @@ function Users({ setActiveComponent, refetchList }) {
             <th>Username</th>
             <th>Email</th>
             <th>Role</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -80,10 +90,26 @@ function Users({ setActiveComponent, refetchList }) {
                   {user.role}
                 </Badge>
               </td>
+              <td>
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={() => handleRoleClick(user)}
+                >
+                  Change Role
+                </Button>
+              </td>
             </tr>
           ))}
         </tbody>
       </Table>
+
+      <ChangeRoleModal
+        show={showRoleModal}
+        handleClose={() => setShowRoleModal(false)}
+        user={selectedUser}
+        refetch={refetch}
+      />
     </Container>
   );
 }

@@ -16,35 +16,27 @@ const CREATE_TEAM_MUTATION = gql`
   }
 `;
 
-function CreateTeam( {setActiveComponent, refetch} ) {
+function CreateTeam({ setActiveComponent, refetchList }) {
   const [teamName, setTeamName] = useState('');
   const [description, setDescription] = useState('');
   const [teamSlogan, setTeamSlogan] = useState('');
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   const [createTeam, { loading }] = useMutation(CREATE_TEAM_MUTATION, {
     onCompleted: () => {
-      setSuccess('Team created successfully!');
-      if (refetch.current) {
-        refetch.current();
+      if (refetchList?.current) {
+        refetchList.current();
       }
-      // Reset form
-      setTeamName('');
-      setDescription('');
-      setTeamSlogan('');
-      setError('');
+      setActiveComponent('teams');
     },
     onError: (error) => {
       setError(error.message);
-      setSuccess('');
     }
   });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setSuccess('');
     
     try {
       await createTeam({
@@ -54,10 +46,8 @@ function CreateTeam( {setActiveComponent, refetch} ) {
           teamSlogan
         }
       });
-
-      return <TeamList />;
     } catch (err) {
-      // Error is handled by onError above
+      console.error('Error creating team:', err);
     }
   };
 
@@ -105,7 +95,7 @@ function CreateTeam( {setActiveComponent, refetch} ) {
           </Alert>
         )}
 
-        <Button variant="dark" type="submit" disabled={loading} onClick={() => setActiveComponent('teams')}>
+        <Button variant="dark" type="submit" disabled={loading}>
           {loading ? 'Creating...' : 'Create Team'}
         </Button>
       </Form>

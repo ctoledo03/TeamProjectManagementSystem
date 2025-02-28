@@ -73,7 +73,7 @@ function AdminDashboard() {
               </Nav.Link>
 
               <Nav.Link onClick={() => setActiveComponent('users')} active={activeComponent === 'users'}>
-                Users 
+                Manage Users
               </Nav.Link>
 
             </Nav>

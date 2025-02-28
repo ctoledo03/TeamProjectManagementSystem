@@ -1,6 +1,5 @@
 import { useQuery, useMutation, gql } from '@apollo/client';
-import { Container, Table, Form, Button, Alert, Spinner } from 'react-bootstrap';
-import { useState } from 'react';
+import { Container, Card, Alert, Spinner, Form, Button } from 'react-bootstrap';
 
 const VIEW_ASSIGNED_PROJECTS = gql`
   query ViewAssignedProjects($userId: ID!) {
@@ -24,51 +23,36 @@ const UPDATE_PROJECT_STATUS = gql`
   }
 `;
 
-// First, get the current user's data
-const GET_ME = gql`
-  query Me {
-    me {
-      id
-      username
-      role
-    }
-  }
-`;
-
 function AssignedProjects() {
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [newStatus, setNewStatus] = useState('');
-
-  const { loading: userLoading, error: userError, data: userData } = useQuery(GET_ME);
+  // In a real app, you'd get the userId from context or auth state
+  const userId = "your-user-id"; 
 
   const { loading, error, data, refetch } = useQuery(VIEW_ASSIGNED_PROJECTS, {
-    variables: { userId: userData?.me?.id },
-    skip: !userData?.me?.id,
+    variables: { userId }
   });
 
-  const [updateStatus] = useMutation(UPDATE_PROJECT_STATUS, {
-    onCompleted: () => {
-      setSelectedProject(null);
+  const [updateStatus] = useMutation(UPDATE_PROJECT_STATUS);
+
+  const handleStatusChange = async (projectId, newStatus) => {
+    try {
+      await updateStatus({
+        variables: {
+          projectId,
+          status: newStatus
+        }
+      });
       refetch();
+    } catch (err) {
+      console.error('Error updating project status:', err);
     }
-  });
+  };
 
-  if (userLoading || loading) {
+  if (loading) {
     return (
       <Container className="text-center mt-4">
         <Spinner animation="border" role="status">
           <span className="visually-hidden">Loading...</span>
         </Spinner>
-      </Container>
-    );
-  }
-
-  if (userError) {
-    return (
-      <Container>
-        <Alert variant="danger">
-          Error loading user data: {userError.message}
-        </Alert>
       </Container>
     );
   }
@@ -83,78 +67,32 @@ function AssignedProjects() {
     );
   }
 
-  const handleStatusUpdate = async (projectId) => {
-    try {
-      await updateStatus({
-        variables: {
-          projectId,
-          status: newStatus
-        }
-      });
-    } catch (err) {
-      console.error('Error updating status:', err);
-    }
-  };
-
   return (
     <Container>
-      <h2 className="mb-4">My Projects</h2>
-      <Table striped bordered hover>
-        <thead>
-          <tr>
-            <th>Project Name</th>
-            <th>Description</th>
-            <th>Status</th>
-            <th>Start Date</th>
-            <th>End Date</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data?.viewAssignedProjects.map((project) => (
-            <tr key={project.id}>
-              <td>{project.projectName}</td>
-              <td>{project.description}</td>
-              <td>
-                {selectedProject === project.id ? (
-                  <Form.Select
-                    value={newStatus}
-                    onChange={(e) => setNewStatus(e.target.value)}
-                  >
-                    <option value="">Select Status</option>
-                    <option value="IN_PROGRESS">In Progress</option>
-                    <option value="COMPLETED">Completed</option>
-                    <option value="ON_HOLD">On Hold</option>
-                  </Form.Select>
-                ) : (
-                  project.status
-                )}
-              </td>
-              <td>{new Date(project.startDate).toLocaleDateString()}</td>
-              <td>{project.endDate ? new Date(project.endDate).toLocaleDateString() : 'N/A'}</td>
-              <td>
-                {selectedProject === project.id ? (
-                  <Button
-                    variant="success"
-                    size="sm"
-                    onClick={() => handleStatusUpdate(project.id)}
-                  >
-                    Save
-                  </Button>
-                ) : (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => setSelectedProject(project.id)}
-                  >
-                    Update Status
-                  </Button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
+      <h2 className="mb-4">My Assigned Projects</h2>
+      {data.viewAssignedProjects.map(project => (
+        <Card key={project.id} className="mb-3">
+          <Card.Body>
+            <Card.Title>{project.projectName}</Card.Title>
+            <Card.Text>
+              {project.description}<br/>
+              <strong>Start Date:</strong> {new Date(Number(project.startDate)).toLocaleDateString()}<br/>
+              <strong>End Date:</strong> {project.endDate ? new Date(Number(project.endDate)).toLocaleDateString() : 'Not set'}
+            </Card.Text>
+            <Form.Group>
+              <Form.Label>Status</Form.Label>
+              <Form.Select
+                value={project.status}
+                onChange={(e) => handleStatusChange(project.id, e.target.value)}
+              >
+                <option value="Pending">Pending</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
+              </Form.Select>
+            </Form.Group>
+          </Card.Body>
+        </Card>
+      ))}
     </Container>
   );
 }

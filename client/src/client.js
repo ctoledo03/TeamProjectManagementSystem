@@ -15,6 +15,9 @@ const client = new ApolloClient({
     query: {
       fetchPolicy: 'network-only', 
     },
+    mutate: {
+      fetchPolicy: 'no-cache',
+    },
   },
 });
 

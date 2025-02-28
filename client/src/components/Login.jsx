@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, gql } from '@apollo/client';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Container, Form, Button, Alert, Navbar, Nav } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
@@ -105,6 +105,10 @@ function Login() {
                 >
                   {loading ? 'Signing in...' : 'Sign in'}
                 </Button>
+              </div>
+
+              <div className="text-center mt-3">
+                Don't have an account? <Link to="/register">Register here</Link>
               </div>
             </Form>
           </div>

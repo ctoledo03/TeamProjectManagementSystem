@@ -1,6 +1,8 @@
 import { useQuery, gql } from '@apollo/client';
 import { Container, Table, Alert, Spinner, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import AssignUsersModal from './AssignUsersModal';
 
 const LIST_TEAMS = gql`
   query ListTeams {
@@ -26,6 +28,8 @@ const LIST_TEAMS = gql`
 
 function Teams( {setActiveComponent, refetchList} ) {
   const { loading, error, data, refetch } = useQuery(LIST_TEAMS);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState(null);
 
   if (refetchList) {
     refetchList.current = refetch;
@@ -40,6 +44,15 @@ function Teams( {setActiveComponent, refetchList} ) {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const handleAssignClick = (team) => {
+    setSelectedTeam(team);
+    setShowAssignModal(true);
+  };
+
+  const getStatusBadgeVariant = (status) => {
+    return status === 'Active' ? 'success' : 'secondary';
   };
 
   if (loading) {
@@ -78,8 +91,11 @@ function Teams( {setActiveComponent, refetchList} ) {
           <tr>
             <th>Team Name</th>
             <th>Description</th>
+            <th>Team Slogan</th>
             <th>Status</th>
-            <th>Created Date</th>
+            <th>Members</th>
+            <th>Projects</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -87,12 +103,34 @@ function Teams( {setActiveComponent, refetchList} ) {
             <tr key={team.id}>
               <td>{team.teamName}</td>
               <td>{team.description}</td>
-              <td>{team.status}</td>
-              <td>{formatDate(team.createdDate)}</td>
+              <td>{team.teamSlogan}</td>
+              <td>
+                <span className={`badge bg-${getStatusBadgeVariant(team.status)}`}>
+                  {team.status}
+                </span>
+              </td>
+              <td>{team.members?.map(member => member.username).join(', ')}</td>
+              <td>{team.projects?.map(project => project.projectName).join(', ')}</td>
+              <td>
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  onClick={() => handleAssignClick(team)}
+                >
+                  Manage Members
+                </Button>
+              </td>
             </tr>
           ))}
         </tbody>
       </Table>
+
+      <AssignUsersModal
+        show={showAssignModal}
+        handleClose={() => setShowAssignModal(false)}
+        team={selectedTeam}
+        refetch={refetch}
+      />
     </Container>
   );
 }

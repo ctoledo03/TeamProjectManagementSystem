@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Container, Nav, Navbar, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, gql } from '@apollo/client';
-import AssignedProjects from './AssignedProjects';
-import TeamDetails from './TeamDetails';
+import MyProjects from './MyProjects';
+import MyTeams from './MyTeams';
 
 const LOGOUT_MUTATION = gql`
   mutation Logout {
@@ -31,11 +31,12 @@ function MemberDashboard() {
 
   const renderComponent = () => {
     switch (activeComponent) {
-      case 'teams':
-        return <TeamDetails />;
       case 'projects':
+        return <MyProjects />;
+      case 'teams':
+        return <MyTeams />;
       default:
-        return <AssignedProjects />;
+        return <MyProjects />;
     }
   };
 
@@ -48,22 +49,19 @@ function MemberDashboard() {
           <Navbar.Collapse id="basic-navbar-nav">
             <Nav className="me-auto">
               <Nav.Link 
-                onClick={() => setActiveComponent('projects')}
+                onClick={() => setActiveComponent('projects')} 
                 active={activeComponent === 'projects'}
               >
                 My Projects
               </Nav.Link>
               <Nav.Link 
-                onClick={() => setActiveComponent('teams')}
+                onClick={() => setActiveComponent('teams')} 
                 active={activeComponent === 'teams'}
               >
                 My Teams
               </Nav.Link>
             </Nav>
-            <Button 
-              variant="outline-light" 
-              onClick={handleLogout}
-            >
+            <Button variant="outline-light" onClick={handleLogout}>
               Logout
             </Button>
           </Navbar.Collapse>
